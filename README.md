@@ -1,5 +1,5 @@
 
-##Certainly! Here's the modified README file to indicate that the dashboard is a work in progress:
+**Certainly! Here's the modified README file to indicate that the dashboard is a work in progress:
 
 Vanuatu 2020 Population Dashboard (Work in Progress)
 This interactive dashboard provides insights into the demographic data of Vanuatu's provinces and area councils for the year 2020. Users can explore population distribution based on various filters, including province, area council, sex, and age group.
