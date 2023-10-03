@@ -1,0 +1,13 @@
+name: Vanuatu_2020_Population_Dashboard
+title: Vanuatu_2020_Population_Dashboard
+username: htevilili
+account: htevilili
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 10065891
+bundleId: 7756274
+url: https://htevilili.shinyapps.io/Vanuatu_2020_Population_Dashboard/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: dashboard.html|dashboard.Rmd|dataset-test.csv|person.csv|Test.html|Test.Rmd|www/favicon.ico
