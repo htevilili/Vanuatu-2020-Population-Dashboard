@@ -4,7 +4,7 @@ library(DT)
 library(dplyr)
 library(rhandsontable)
 library(shinythemes)
-library(ggplot2)
+library(plotly)
 
 # Load the dataset
 data <- read.csv("dataset.csv", header = TRUE)
@@ -24,7 +24,7 @@ ui <- dashboardPage(
   dashboardBody(
     theme = shinytheme("cerulean"), 
     tags$head(
-      tags$style(HTML(".total-population {text-align: center; font-size: 20px; font-weight: bold;}")),
+      tags$style(HTML(".total-population {text-align: center; font-size: 20px; font-weight: bold;}.box-content {text-align: center;}")),
       tags$link(rel = "stylesheet", type = "text/css", href = "styles.css") 
     ),
     tabItems(
@@ -44,7 +44,7 @@ ui <- dashboardPage(
                              multiple = FALSE, selected = "All"),
                  selectInput("age_5yr_70", "Select a Grouped Age",
                              choices = c("All", unique(data$age_5yr_70)),
-                             multiple = FALSE, selected = "All")
+                             multiple = TRUE, selected = "All") # Changed to multiselect
           ),
           column(9,
                  DTOutput("filtered_data_table"),
@@ -54,11 +54,60 @@ ui <- dashboardPage(
       ),
       tabItem(
         tabName = "population",
-        h2("Population Data"),
+        h2("Population Visualisation"),
         p("This is the population page content."),
         fluidRow(
+          column(3,
+                 box(
+                   width = NULL,
+                   solidHeader = TRUE,
+                   title = h4("Population Aged 0 to 15"),
+                   div(
+                     h2(
+                       textOutput("population_0_to_15"),
+                       style = "font-weight: bold;"
+                     ), class = "box-content") # Added div with class
+                 )
+          ),
+          column(3,
+                 box(
+                   width = NULL,
+                   solidHeader = TRUE,
+                   title = h4("Population Aged 16 to 70"),
+                   div(
+                     h2(
+                       textOutput("box_2_output"),
+                       style = "font-weight: bold;"
+                     ), class = "box-content") # Added div with class
+                 )
+          ),
+          column(3,
+                 box(
+                   width = NULL,
+                   solidHeader = TRUE,
+                   title = h4("Population Aged 15+"),
+                   div(
+                     h2(
+                       textOutput("box_3_output"),
+                       style = "font-weight: bold;"
+                     ), class = "box-content") # Added div with class
+                 )
+          ),
+          column(3,
+                 box(
+                   width = NULL,
+                   solidHeader = TRUE,
+                   title = h4("Population Aged 70+"),
+                   div(
+                     h2(
+                       textOutput("box_4_output"),
+                       style = "font-weight: bold;"
+                     ), class = "box-content") # Added div with class
+                 )
+          )
+        ),
+        fluidRow(
           column(6,
-                 style = "margin-right: 5px;",
                  box(
                    width = NULL,
                    solidHeader = TRUE,
@@ -67,12 +116,11 @@ ui <- dashboardPage(
                  )
           ),
           column(6,
-                 style = "margin-left: 5px;",
                  box(
                    width = NULL,
                    solidHeader = TRUE,
-                   title = "Population Pyramid",
-                   plotOutput("population_pyramid")
+                   title = "Population by Age Group and Sex",
+                   DTOutput("age_sex_table")
                  )
           )
         )
@@ -135,22 +183,31 @@ server <- function(input, output, session) {
       layout(title = "Population by Province", xaxis = list(title = "Province"))
   })
   
-  output$population_pyramid <- renderPlot({
-    pyramid_data <- filtered_data() %>%
+  output$age_sex_table <- renderDT({
+    dt_data <- filtered_data() %>%
       group_by(age_5yr_70, sex) %>%
-      summarize(Population = sum(ac_factor))
-    
-    pyramid_data <- pyramid_data %>%
-      mutate(Population = ifelse(sex == "Male", -Population, Population))
-    
-    pyramid_data <- pyramid_data %>%
-      arrange(age_5yr_70_id)
-    
-    ggplot(pyramid_data, aes(x = age_5yr_70, y = Population, fill = sex)) +
-      geom_bar(stat = "identity") +
-      coord_flip() +
-      labs(title = "Population Pyramid", x = "Population", y = "Age Group") +
-      theme(legend.position="none")
+      summarize(Population = round(sum(ac_factor), 0))
+    datatable(dt_data, options = list(pageLength = 10), rownames = FALSE)
+  })
+  
+  output$population_0_to_15 <- renderText({
+    total_population_0_to_15 <- sum(filtered_data()$age >= 0 & filtered_data()$age <= 15)
+    paste(total_population_0_to_15)
+  })
+  
+  output$box_2_output <- renderText({
+    total_population_16_to_70 <- sum(filtered_data()$age >= 16 & filtered_data()$age <= 70)
+    paste(total_population_16_to_70)
+  })
+  
+  output$box_3_output <- renderText({
+    total_population_15_plus <- sum(filtered_data()$age >= 15)
+    paste(total_population_15_plus)
+  })
+  
+  output$box_4_output <- renderText({
+    total_population_70_plus <- sum(filtered_data()$age >= 70)
+    paste(total_population_70_plus)
   })
 }
 
