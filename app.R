@@ -4,6 +4,7 @@ library(DT)
 library(dplyr)
 library(rhandsontable)
 library(shinythemes)
+library(shinyWidgets)
 library(plotly)
 library(ggplot2)
 library(openxlsx)
@@ -20,9 +21,9 @@ ui <- dashboardPage(
   dashboardHeader(title = "Vanuatu 2020 Population Dashboard"),
   dashboardSidebar(
     sidebarMenu(
+      menuItem("Dashboard", tabName = "population"),
       menuItem("Datatable", tabName = "home"),
-      menuItem("Pivot Table", tabName = "rpivot"),
-      menuItem("Visualization", tabName = "population")
+      menuItem("Pivot Table", tabName = "rpivot")
     )
   ),
   dashboardBody(
@@ -193,7 +194,15 @@ server <- function(input, output, session) {
   })
   
   output$pivot_table_r <- renderRpivotTable({
-    rpivotTable(data = filtered_data())
+    rpivotTable(
+      data = filtered_data(),
+      formatter = htmlwidgets::JS(
+        "function(x) {",
+        "  if(typeof x === 'number') return x.toFixed(0);",
+        "  return x;",
+        "}"
+      )
+    )
   })
   
   output$total_population <- renderText({
@@ -252,14 +261,6 @@ server <- function(input, output, session) {
       theme(legend.position = "top")
   })
   
-  output$download_csv <- downloadHandler(
-    filename = function() {
-      paste("pivot_table_", Sys.Date(), ".xlsx", sep = "")
-    },
-    content = function(file) {
-      write.xlsx(create_pivot_table(), file)  # Export as xlsx
-    }
-  )
 }
 
 
