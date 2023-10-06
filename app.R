@@ -5,6 +5,9 @@ library(dplyr)
 library(rhandsontable)
 library(shinythemes)
 library(plotly)
+library(ggplot2)
+library(openxlsx)
+library(rpivotTable)
 
 # Load the dataset
 data <- read.csv("dataset.csv", header = TRUE)
@@ -18,6 +21,7 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       menuItem("Datatable", tabName = "home"),
+      menuItem("Pivot Table", tabName = "rpivot"),
       menuItem("Visualization", tabName = "population")
     )
   ),
@@ -48,9 +52,15 @@ ui <- dashboardPage(
           ),
           column(9,
                  DTOutput("filtered_data_table"),
-                 tags$div(class = "total-population", textOutput("total_population"))
+                 tags$div(class = "total-population", textOutput("total_population")),
+                 downloadButton("download_csv", "Download Filtered Data (CSV)")
           )
         )
+      ),
+      tabItem(
+        tabName = "rpivot",
+        h2("Generate Your Custom Pivot Table"),
+        rpivotTableOutput("pivot_table_r")
       ),
       tabItem(
         tabName = "population",
@@ -120,7 +130,7 @@ ui <- dashboardPage(
                    width = NULL,
                    solidHeader = TRUE,
                    title = "Population by Age Group and Sex",
-                   DTOutput("age_sex_table")
+                   plotOutput("population_pyramid")
                  )
           )
         )
@@ -130,6 +140,7 @@ ui <- dashboardPage(
 )
 
 server <- function(input, output, session) {
+  
   filtered_data <- reactive({
     filtered <- data
     if (!"All" %in% input$province) {
@@ -146,6 +157,15 @@ server <- function(input, output, session) {
     }
     return(filtered)
   })
+  
+  create_pivot_table <- reactive({
+    pivot_data <- filtered_data() %>%
+      group_by(province_id, area_council_id, sex, age_5yr_70_id) %>%
+      summarize(Population = round(sum(ac_factor), 0)) %>%
+      arrange(province_id, area_council_id, sex, age_5yr_70_id)  # Add this line for sorting
+    return(pivot_data)
+  })
+  
   
   observe({
     if (!"All" %in% input$province) {
@@ -164,8 +184,16 @@ server <- function(input, output, session) {
       aggregated_data <- filtered_data() %>%
         group_by(Province = province, `Area Council` = area_council) %>%
         summarize(Population = round(sum(ac_factor), 0))
-      datatable(aggregated_data, options = list(pageLength = 10)) 
+      datatable(aggregated_data, 
+                options = list(pageLength = 10, 
+                               dom = 't',
+                               buttons = list())
+      ) 
     }
+  })
+  
+  output$pivot_table_r <- renderRpivotTable({
+    rpivotTable(data = filtered_data())
   })
   
   output$total_population <- renderText({
@@ -181,13 +209,6 @@ server <- function(input, output, session) {
     plot_ly(data = bar_data, x = ~province, y = ~Population, type = 'bar', 
             text = ~paste('Population:', Population)) %>%
       layout(title = "Population by Province", xaxis = list(title = "Province"))
-  })
-  
-  output$age_sex_table <- renderDT({
-    dt_data <- filtered_data() %>%
-      group_by(age_5yr_70, sex) %>%
-      summarize(Population = round(sum(ac_factor), 0))
-    datatable(dt_data, options = list(pageLength = 10), rownames = FALSE)
   })
   
   output$population_0_to_15 <- renderText({
@@ -209,6 +230,38 @@ server <- function(input, output, session) {
     total_population_70_plus <- sum(filtered_data()$age >= 70)
     paste(total_population_70_plus)
   })
+  
+  output$population_pyramid <- renderPlot({
+    pyramid_data <- filtered_data() %>%
+      group_by(age_5yr_70, sex) %>%
+      summarize(Population = sum(ac_factor))
+    
+    pyramid_data <- pyramid_data %>%
+      mutate(Population = ifelse(sex == "Male", -Population, Population))
+    
+    pyramid_data$age_5yr_70 <- factor(pyramid_data$age_5yr_70, levels = unique(data$age_5yr_70))
+    
+    ggplot(data = pyramid_data, aes(x = age_5yr_70, y = Population, fill = sex)) +
+      geom_bar(stat = "identity",  width = 0.7) +
+      coord_flip() +
+      scale_y_continuous(labels = abs) +
+      labs(title = "Population Pyramid",
+           x = "Age Group",
+           y = "Population") +
+      theme_minimal() +
+      theme(legend.position = "top")
+  })
+  
+  output$download_csv <- downloadHandler(
+    filename = function() {
+      paste("pivot_table_", Sys.Date(), ".xlsx", sep = "")
+    },
+    content = function(file) {
+      write.xlsx(create_pivot_table(), file)  # Export as xlsx
+    }
+  )
 }
+
+
 
 shinyApp(ui, server)
